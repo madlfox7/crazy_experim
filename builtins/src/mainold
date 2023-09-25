@@ -1,0 +1,187 @@
+#include "../includes/shelly.h"
+#include <limits.h>
+
+#define MAX_TOKENS 100  
+#define COMMAND 1
+#define PIPE 2
+#define FILENAME 3
+#define UNKNOWN 4
+
+typedef struct
+{
+    char *value;  // Token's value "ls", "|", "file.txt"
+    int type;     // COMMAND, PIPE, FILENAME
+} Token;
+
+typedef struct
+{
+    Token tokens[MAX_TOKENS];
+    int count;
+} Tokenizer;
+
+
+void add_token(Tokenizer *tokenizer, char *value, int type);
+
+
+static void quotes(char *line, int *i, int *count, char *chars, char quote_type) {
+    (*i)++; // Opening quote
+    while (line[*i] != quote_type && line[*i] != '\0')
+        (*i)++;
+    if (line[*i] == '\0')
+    {
+        // Not closed quote
+        (*count) = INT_MIN;
+    }
+    (*i)++; // Closing ' or "
+    if (line[*i] == '\0' || strchr(chars, line[*i]) != 0)
+        (*count)++;
+}
+
+static int get_token_count(char *input)
+{
+    char symbols[11] = "()<>;|& \n\t";
+    int i = 0;
+    int count = 0;
+
+    while (input[i] != '\0') {
+        if (input[i] == '\'' || input[i] == '\"')
+            quotes(input, &i, &count, symbols, input[i]);
+        else {
+            while (strchr(symbols, input[i]) == 0 && input[i] != '\0' && input[i] != '\'' && input[i] != '\"')
+                i++;
+            if ((input[i] != '\'' && input[i] != '\"') || input[i] == '\0')
+                count++;
+        }
+        // Reset 'i'
+        while (input[i] != '\0' && strchr(symbols, input[i]) != 0)
+            i++;
+    }
+    if (count < 0)
+        printf("Error not closed quote\n");
+
+    return count;
+}
+
+void init_tokens(char *input, Tokenizer *tokenizer)
+{
+    char symbols[11] = "()<>;|& \n\t";
+    int i = 0;
+    int token_count = 0;
+
+    while (input[i] != '\0' && token_count < MAX_TOKENS)
+    {
+        if (input[i] == '\'' || input[i] == '\"')
+	{
+            int start = i;
+            quotes(input, &i, &token_count, symbols, input[start]);
+            int end = i - 1;
+            int length = end - start - 1;
+            char *token_value = (char *)malloc(length + 1);
+            strncpy(token_value, input + start + 1, length); //change strncpy
+            token_value[length] = '\0';        
+            add_token(tokenizer, token_value, FILENAME);  
+            free(token_value);
+        }
+	else
+	{
+            int start = i;
+            while (strchr(symbols, input[i]) == 0 && input[i] != '\0' &&
+                   input[i] != '\'' && input[i] != '\"')
+                i++;
+            int end = i - 1;
+            int length = end - start + 1;
+            char *token_value = (char *)malloc(length + 1);
+            strncpy(token_value, input + start, length);
+            token_value[length] = '\0';
+            add_token(tokenizer, token_value, COMMAND);
+            free(token_value);
+        }
+        // Reset 'i'
+        while (input[i] != '\0' && strchr(symbols, input[i]) != 0)
+            i++;
+    }
+}
+
+void add_token(Tokenizer *tokenizer, char *value, int type)
+{
+    if (tokenizer->count < MAX_TOKENS)
+    {
+        tokenizer->tokens[tokenizer->count].value = strdup(value); //change to ft_dup v
+        tokenizer->tokens[tokenizer->count].type = type;   
+        tokenizer->count++;
+    }
+    else
+    {
+        printf("Too many tokens\n");
+    }
+}
+
+int parser(char *input, Tokenizer *tokens)
+{
+    int token_count = get_token_count(input);
+
+    if (token_count > 0)
+        init_tokens(input, tokens);
+
+    // List of known commands
+    char *known_commands[] = {"ls", "cd", "echo"};
+
+    for (int i = 0; i < tokens->count; i++)
+    {
+        char *value = tokens->tokens[i].value;
+        int is_known_command = 0;
+        for (size_t j = 0; j < sizeof(known_commands) / sizeof(known_commands[0]); j++)
+	{
+            if (strcmp(value, known_commands[j]) == 0) {
+                is_known_command = 1;
+                break;
+            }
+        }
+        if (!is_known_command) 
+            tokens->tokens[i].type = UNKNOWN;
+    }
+    return token_count;
+}
+
+int main(int argc, char **argv)
+{
+    (void)argv;
+    char *input = NULL;
+      Tokenizer tokens;
+    tokens.count = 0;  // Initialize the token count
+
+    if (argc != 1)
+    {
+        printf("Usage: ./minishell\n");
+        exit(EXIT_FAILURE);
+    }
+    //print shell logo
+    while (1)
+    {
+        input = readline("\033[36mMinishell$ \033[33m");
+        if (input == NULL) {
+           printf("Error reading input. Exiting.\n");
+            break;
+        }
+         parser(input, &tokens);
+        if (strcmp(input, "exit") == 0)
+        {
+            break;
+        }
+        if (strlen(input) > 0 && input[0] != '\0')
+            add_history(input);
+	 int token_count = parser(input, &tokens);
+        if (token_count < 0)
+	{
+            printf("Error: Not closed quote.\n");
+	    break ;
+        }
+            printf("Parsed tokens:\n");
+            for (int i = 0; i < tokens.count; i++)
+	    {
+                printf("Token %d: Type=%d, Value=%s\n", i, tokens.tokens[i].type, tokens.tokens[i].value);
+            }
+    }
+    return 0;
+}
+

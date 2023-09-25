@@ -1,0 +1,170 @@
+#include "../includes/shelly.h"
+#include <limits.h>
+#include <string.h>
+
+#define MAX_TOKENS 100000
+
+typedef struct {
+    char *value;
+    enum token_type type; 
+} t_token
+;
+typedef struct 
+{
+	char *str;
+	struct t_token;
+    //Token tokens[MAX_TOKENS];
+    //int count;
+} tokenize;
+
+typedef struct s_shelly 
+{
+	t_list *tokenize;
+	
+} t_shelly;
+
+enum token_type {
+    S_WORD,
+    SPACE,
+    PIPE,
+    AND,
+    SEMICON,
+    O_C_BRACE,
+    C_C_BRACE,
+    LESS_OP,
+    GREATER_OP,
+    DOLLAR
+};
+
+int	unclosed_quotes(char *input)
+{
+	int		i;
+	int		S_quote;
+	int		D_quote;
+
+	i = 0;
+	S_quote = 0;
+	D_quote = 0;
+	while (input[i])
+	{
+		if (input[i] == '\'' && !D_quote)
+			S_quote = !S_quote;
+		else if (input[i] == '\"' && !S_quote)
+			D_quote = !D_quote;
+		i++;
+	}
+	if (S_quote || D_quote)
+		return 1;
+	return 0;
+}
+
+
+int ft_isspace(char c)
+{
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v');
+}
+
+int whitespaces(char *input)
+{
+    if (input == NULL)
+        return 0;
+
+    while (*input != '\0')
+    {
+        if (!ft_isspace(*input))
+            return 0;
+        input++;
+    }
+    return 1; 
+}
+
+void logo(void)
+{
+	//       printf("\033[36m"); 
+	//printf("\033[0;3;6m"); // Darker cyan-like color
+//	printf("\033[1;96;5m");
+	printf("\033[5;36m\a");
+	   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    printf("~                                                                     ~\n");
+    printf("~ ███╗   ███╗██╗███╗   ██╗██╗███████╗██╗  ██╗███████╗██╗     ██╗      ~\n");
+    printf("~ ████╗ ████║██║████╗  ██║██║██╔════╝██║  ██║██╔════╝██║     ██║      ~\n");
+    printf("~ ██╔████╔██║██║██╔██╗ ██║██║███████╗███████║█████╗  ██║     ██║      ~\n");
+    printf("~ ██║╚██╔╝██║██║██║╚██╗██║██║╚════██║██╔══██║██╔══╝  ██║     ██║      ~\n");
+    printf("~ ██║ ╚═╝ ██║██║██║ ╚████║██║███████║██║  ██║███████╗███████╗███████╗ ~\n");
+    printf("~ ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝ ~\n");
+    printf("~                                                                     ~\n");
+    printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+    printf("\033[0m");
+}
+
+/*
+void parser(char *input)
+{
+	int i = 0;
+
+	while (*input)
+	{
+		if (*input == ' ')
+		{
+			input = add_token(shell, (po_array[i++] = tokenize_white_space(input, shell)));
+			//parse whitespaces
+		}
+		else if ((input[i] == '\"') || (input[i] == '\''))
+			input = tokenize_brackets(input, shell, po_array[i++]);
+		else if ((input[i] == '<') || (input[i] == '>'))
+			input = tokenize_less_bigger(input, shell, po_array[i++]);
+		else if ((*input == '|') || (*input == '$'))
+			input = tokenize_pipe_and_dollar(input, shell, po_array[i++]);
+		else if (ft_isascii(*input) && !is_breaking_character(*input))
+			input = add_token(shell, (po_array[i++]
+						= tokenize_bare_word(input, shell)));
+		else
+			break ;
+	}
+}
+*/
+
+int main(int argc, char **argv)
+{
+    (void)argv;
+    char *input = NULL;
+    //Tokenizer tokens;
+    //tokens.count = 0; 
+
+    if (argc != 1)
+    {
+        printf("Usage: ./minishell\n");
+        exit(EXIT_FAILURE);
+    }
+    logo();
+    while (1)
+    {
+        input = readline("\033[36mMinishell$ \033[33m");
+        if (input == NULL)
+	{
+           printf("Error reading input. Exiting.\n");
+            break;
+        }
+        if (strcmp(input, "exit") == 0)
+            break;
+	   if (unclosed_quotes(input))
+	   {
+		   printf("Error, unclosed brace\n");
+		   //it must be added to history? even if not valid input
+	   }
+        else if (strlen(input) > 0 && input[0] != '\0' && !whitespaces(input))
+        {
+            add_history(input);
+           // parser(input, &tokens);
+	   //to tokens with metachars as delimeters, categorize everything
+            printf("Parsed tokens:\n");
+            /*for (int i = 0; i < tokens.count; i++)
+            {
+                printf("Token %d: Type=%d, Value=%s\n", i, tokens.tokens[i].type, tokens.tokens[i].value);
+            }
+            tokens.count = 0;*/
+       }
+        free(input);
+    	}
+ return 0;		
+}
